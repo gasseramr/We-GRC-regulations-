@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Register Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(90deg, #2c7744 0%, #5aaf6f 100%);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.4rem;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        .content {
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .risk-table-container {
+            overflow-x: auto;
+        }
+        
+        .risk-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .risk-table th {
+            background: #2c7744;
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .risk-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .risk-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .risk-table tr:hover {
+            background: #f0f7ff;
+        }
+        
+        .risk-score {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            text-align: center;
+            min-width: 30px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background: #5aaf6f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #2c7744;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #eaeaea;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-controls select, .filter-controls input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        @media (max-width: 1024px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            header {
+                padding: 20px 15px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Risk Register Dashboard</h1>
+            <p class="subtitle">Comprehensive view of cybersecurity risks with treatment plans</p>
+        </header>
+        
+        <div class="content">
+            <div class="filter-controls">
+                <select id="risk-level-filter">
+                    <option value="all">All Risk Levels</option>
+                    <option value="critical">Critical (16-25)</option>
+                    <option value="high">High (12-15)</option>
+                    <option value="medium">Medium (8-11)</option>
+                    <option value="low">Low (1-7)</option>
+                </select>
+                
+                <select id="treatment-filter">
+                    <option value="all">All Treatments</option>
+                    <option value="mitigate">Mitigate</option>
+                    <option value="accept">Accept</option>
+                    <option value="transfer">Transfer</option>
+                </select>
+                
+                <input type="text" id="search-risks" placeholder="Search risks...">
+            </div>
+            
+            <div class="dashboard">
+                <div class="chart-container">
+                    <canvas id="risk-matrix"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="risk-trend"></canvas>
+                </div>
+                
+                <div class="chart-container full-width">
+                    <canvas id="treatment-chart"></canvas>
+                </div>
+                
+                <div class="risk-table-container full-width">
+                    <table class="risk-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Risk Description</th>
+                                <th>Likelihood</th>
+                                <th>Impact</th>
+                                <th>Inherent Risk</th>
+                                <th>Residual Risk</th>
+                                <th>Owner</th>
+                                <th>Treatment</th>
+                                <th>Justification</th>
+                            </tr>
+                        </thead>
+                        <tbody id="risk-table-body">
+                            <!-- Risk data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffcccc;"></div>
+                    <span>Critical Risk (16-25)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffe6cc;"></div>
+                    <span>High Risk (12-15)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffffcc;"></div>
+                    <span>Medium Risk (8-11)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e6ffcc;"></div>
+                    <span>Low Risk (1-7)</span>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="export-pdf">Export as PDF</button>
+                <button id="reset-view">Reset Filters</button>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Risk Register Dashboard | © 2023</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Risk data
+            const risks = [
+                {
+                    id: "R1",
+                    description: "Data breach of Fuel Card Payment System (PCI scope)",
+                    likelihood: 4,
+                    impact: 5,
+                    inherent: 20,
+                    residual: 10,
+                    owner: "Compliance Officer",
+                    treatment: "Mitigate",
+                    justification: "Implement PCI-DSS controls, tokenization, encryption, regular audits."
+                },
+                {
+                    id: "R2",
+                    description: "IoT Gateway compromise leading to fleet telemetry manipulation",
+                    likelihood: 3,
+                    impact: 4,
+                    inherent: 12,
+                    residual: 8,
+                    owner: "CISO",
+                    treatment: "Mitigate",
+                    justification: "Strengthen VPN/mTLS, IDS for IoT, firmware patch mgmt."
+                },
+                {
+                    id: "R3",
+                    description: "Ransomware attack on HQ Windows Server 2016 (AD, identity)",
+                    likelihood: 4,
+                    impact: 4,
+                    inherent: 16,
+                    residual: 9,
+                    owner: "IT Ops Lead",
+                    treatment: "Mitigate",
+                    justification: "Patch mgmt, EDR, offline backups, phishing awareness."
+                },
+                {
+                    id: "R4",
+                    description: "Driver mobile tablets lost/stolen with cached fleet data",
+                    likelihood: 5,
+                    impact: 3,
+                    inherent: 15,
+                    residual: 6,
+                    owner: "IT Security",
+                    treatment: "Mitigate",
+                    justification: "MDM, EDR, remote wipe, enforced encryption."
+                },
+                {
+                    id: "R5",
+                    description: "Cloud misconfiguration (AWS IoT/DynamoDB exposed publicly)",
+                    likelihood: 3,
+                    impact: 5,
+                    inherent: 15,
+                    residual: 9,
+                    owner: "Cloud Architect",
+                    treatment: "Mitigate",
+                    justification: "IaC scans, CSPM, IAM hardening, least privilege."
+                },
+                {
+                    id: "R6",
+                    description: "Service downtime in Fleet Management System impacting logistics ops",
+                    likelihood: 4,
+                    impact: 4,
+                    inherent: 16,
+                    residual: 12,
+                    owner: "Fleet Manager",
+                    treatment: "Mitigate/Transfer",
+                    justification: "Redundancy + DR plan, cloud SLA with vendor."
+                },
+                {
+                    id: "R7",
+                    description: "Insider threat (fraudulent fuel card transactions)",
+                    likelihood: 2,
+                    impact: 4,
+                    inherent: 8,
+                    residual: 5,
+                    owner: "Compliance & Finance",
+                    treatment: "Mitigate/Accept",
+                    justification: "Transaction monitoring, segregation of duties, logging."
+                },
+                {
+                    id: "R8",
+                    description: "Regulatory non-compliance with GDPR/Egyptian Privacy Law",
+                    likelihood: 3,
+                    impact: 4,
+                    inherent: 12,
+                    residual: 7,
+                    owner: "Legal/Compliance",
+                    treatment: "Mitigate",
+                    justification: "Updated privacy policy, DPO role, data subject rights process."
+                }
+            ];
+            
+            // Create risk matrix chart
+            const matrixCtx = document.getElementById('risk-matrix').getContext('2d');
+            const matrixChart = new Chart(matrixCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Inherent Risk',
+                        data: risks.map(r => ({
+                            x: r.impact,
+                            y: r.likelihood,
+                            r: 8,
+                            risk: r.description,
+                            id: r.id,
+                            score: r.inherent
+                        })),
+                        backgroundColor: risks.map(r => {
+                            if (r.inherent >= 16) return '#ffcccc';
+                            if (r.inherent >= 12) return '#ffe6cc';
+                            if (r.inherent >= 8) return '#ffffcc';
+                            return '#e6ffcc';
+                        }),
+                        borderColor: 'rgba(0, 0, 0, 0.5)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Impact',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: 0.5,
+                            max: 5.5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value;
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Likelihood',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: 0.5,
+                            max: 5.5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value;
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Risk Matrix (Inherent Risk)',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return [
+                                        `Risk: ${context.raw.risk}`,
+                                        `ID: ${context.raw.id}`,
+                                        `Impact: ${context.raw.x}, Likelihood: ${context.raw.y}`,
+                                        `Risk Score: ${context.raw.score}`
+                                    ];
+                                }
+                            }
+                        },
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // Create risk trend chart
+            const trendCtx = document.getElementById('risk-trend').getContext('2d');
+            const trendChart = new Chart(trendCtx, {
+                type: 'bar',
+                data: {
+                    labels: risks.map(r => r.id),
+                    datasets: [
+                        {
+                            label: 'Inherent Risk',
+                            data: risks.map(r => r.inherent),
+                            backgroundColor: '#5aaf6f',
+                            borderColor: '#2c7744',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Residual Risk',
+                            data: risks.map(r => r.residual),
+                            backgroundColor: '#a6d5b0',
+                            borderColor: '#5aaf6f',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Risk Score',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            max: 25
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Risk Reduction (Inherent vs Residual)',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create treatment chart
+            const treatmentCtx = document.getElementById('treatment-chart').getContext('2d');
+            
+            // Count treatments
+            const treatmentCounts = {};
+            risks.forEach(r => {
+                const treatments = r.treatment.split('/');
+                treatments.forEach(t => {
+                    t = t.trim();
+                    treatmentCounts[t] = (treatmentCounts[t] || 0) + 1;
+                });
+            });
+            
+            const treatmentChart = new Chart(treatmentCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(treatmentCounts),
+                    datasets: [{
+                        data: Object.values(treatmentCounts),
+                        backgroundColor: [
+                            '#5aaf6f',
+                            '#ffcc00',
+                            '#ff6b6b',
+                            '#3399ff',
+                            '#9966ff'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Risk Treatment Distribution',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        },
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+            
+            // Populate risk table
+            const tableBody = document.getElementById('risk-table-body');
+            
+            function populateTable(risksToShow) {
+                tableBody.innerHTML = '';
+                
+                risksToShow.forEach(r => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine risk category color
+                    let inherentColor = '';
+                    let residualColor = '';
+                    
+                    if (r.inherent >= 16) {
+                        inherentColor = '#ffcccc';
+                    } else if (r.inherent >= 12) {
+                        inherentColor = '#ffe6cc';
+                    } else if (r.inherent >= 8) {
+                        inherentColor = '#ffffcc';
+                    } else {
+                        inherentColor = '#e6ffcc';
+                    }
+                    
+                    if (r.residual >= 16) {
+                        residualColor = '#ffcccc';
+                    } else if (r.residual >= 12) {
+                        residualColor = '#ffe6cc';
+                    } else if (r.residual >= 8) {
+                        residualColor = '#ffffcc';
+                    } else {
+                        residualColor = '#e6ffcc';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${r.id}</td>
+                        <td>${r.description}</td>
+                        <td>${r.likelihood}</td>
+                        <td>${r.impact}</td>
+                        <td><span class="risk-score" style="background-color: ${inherentColor}">${r.inherent}</span></td>
+                        <td><span class="risk-score" style="background-color: ${residualColor}">${r.residual}</span></td>
+                        <td>${r.owner}</td>
+                        <td>${r.treatment}</td>
+                        <td>${r.justification}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            // Initial table population
+            populateTable(risks);
+            
+            // Add event listeners for filters
+            document.getElementById('risk-level-filter').addEventListener('change', filterRisks);
+            document.getElementById('treatment-filter').addEventListener('change', filterRisks);
+            document.getElementById('search-risks').addEventListener('input', filterRisks);
+            
+            function filterRisks() {
+                const riskLevel = document.getElementById('risk-level-filter').value;
+                const treatment = document.getElementById('treatment-filter').value;
+                const searchText = document.getElementById('search-risks').value.toLowerCase();
+                
+                let filteredRisks = risks.filter(r => {
+                    // Risk level filter
+                    let riskLevelMatch = true;
+                    if (riskLevel !== 'all') {
+                        if (riskLevel === 'critical') {
+                            riskLevelMatch = r.inherent >= 16;
+                        } else if (riskLevel === 'high') {
+                            riskLevelMatch = r.inherent >= 12 && r.inherent < 16;
+                        } else if (riskLevel === 'medium') {
+                            riskLevelMatch = r.inherent >= 8 && r.inherent < 12;
+                        } else if (riskLevel === 'low') {
+                            riskLevelMatch = r.inherent < 8;
+                        }
+                    }
+                    
+                    // Treatment filter
+                    let treatmentMatch = true;
+                    if (treatment !== 'all') {
+                        treatmentMatch = r.treatment.toLowerCase().includes(treatment);
+                    }
+                    
+                    // Search text filter
+                    let searchMatch = true;
+                    if (searchText) {
+                        searchMatch = (
+                            r.id.toLowerCase().includes(searchText) ||
+                            r.description.toLowerCase().includes(searchText) ||
+                            r.owner.toLowerCase().includes(searchText) ||
+                            r.justification.toLowerCase().includes(searchText)
+                        );
+                    }
+                    
+                    return riskLevelMatch && treatmentMatch && searchMatch;
+                });
+                
+                populateTable(filteredRisks);
+            }
+            
+            document.getElementById('reset-view').addEventListener('click', function() {
+                document.getElementById('risk-level-filter').value = 'all';
+                document.getElementById('treatment-filter').value = 'all';
+                document.getElementById('search-risks').value = '';
+                populateTable(risks);
+            });
+            
+            document.getElementById('export-pdf').addEventListener('click', function() {
+                alert('PDF export functionality would be implemented here. This would typically require a library like jsPDF.');
+            });
+        });
+    </script>
+</body>
+</html>
